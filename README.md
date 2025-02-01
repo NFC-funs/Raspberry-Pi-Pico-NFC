@@ -1,6 +1,10 @@
 # Raspberry-Pi-Pico-NFC
 The Fastest Mifare-1 Emulator -- the response speed is exactly the same as the original card
 
+1. No NFC chip is used
+2. Reader support: ISO14443A(include Mifare and Ntag), ISO14443B, ISO15693, Felica
+3. Tag Emulator support:  ISO14443A(include Mifare and Ntag), ISO15693
+
 Standard MIFARE Card：
 ![image](https://github.com/NFC-funs/NFC-Emulator/blob/main/Doc/uid_card.png)
 
