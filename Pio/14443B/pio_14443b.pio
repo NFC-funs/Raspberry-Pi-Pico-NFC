@@ -1,0 +1,66 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+;////////////////////////////////////////////////////////////////////////////
+.program capture14b
+; In which we try to use the PIO as a timer
+; then blast the captured times to the IN FIFO
+
+	; gpio x rising/falling edge occurance will be time
+	; stamped and transfered to FIFO
+	; This program just counts while waiting for the edge,
+	; loads a time into a FIFO
+
+.wrap_target
+; if the proram wraps to here, then 2^32 counts have ticked
+	set x 0x00		; init x timer 0x00000000 
+	mov x ~x		; NOT the bits into x 0xffffffff
+	
+wait1:
+	jmp pin got1 	; wait for rising edge + delay a cycle
+	jmp x-- wait1	; loop is 2 cycles (two jmps+cycle-to-jmp) add one wait
+got1:
+	jmp x-- next0	; need to maintain timing
+next0:
+	in x 32			; send the counter to isr 
+	jmp x-- next1	; need to maintain timing
+next1:
+    push noblock
+	jmp x-- wait0	; need to maintain timing
+	
+wait0:
+	jmp pin not0	; wait for falling edge + delay a cycle
+	jmp x-- next2	; need to maintain timing
+not0:
+	jmp x-- wait0	; loop is 2 cycles
+next2:
+	in x 32			; send the counter to isr 
+	jmp x-- next3	; need to maintain timing
+next3:
+	push noblock
+	jmp x-- wait1   ; got the 0, so wait for 1
+
+.wrap             	; 
+
+
+% c-sdk {
+void capture14b_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // the jump pin
+   pio_gpio_init(pio, pin); 
+   gpio_pull_down(pin);
+   //
+   pio_sm_config c = capture14b_program_get_default_config(offset);  
+   // JMP pin is specified separately as GPIO #--uint pin
+   sm_config_set_jmp_pin (&c, pin) ;
+   // no output FIFO from core0, all input to core0
+   sm_config_set_fifo_join (&c, PIO_FIFO_JOIN_RX) ;
+   // autopush the isr to eliminate one istrcution
+   //sm_config_set_in_shift (&c, true, true, 1) ; 
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
+
+;/////////////////////////////////////////////////////////////////////////////////
